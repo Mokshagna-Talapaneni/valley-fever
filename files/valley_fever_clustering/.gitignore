@@ -1,0 +1,3 @@
+outputs/model/
+__pycache__/
+*.pyc

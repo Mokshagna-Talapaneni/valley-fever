@@ -1,0 +1,5 @@
+feature,cramers_v,p_value,mutual_info
+income_bracket,0.59,1.637577287608203e-22,0.196
+employment_status,0.586,2.1980947509413353e-21,0.185
+insurance_status,0.519,1.989999740986036e-17,0.145
+education_level,0.408,8.57387812076508e-11,0.088
