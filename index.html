@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valley Fever Patient Grouping — Results Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F5F1;
+    --paper-alt:#EFEEE7;
+    --ink:#1C2B2E;
+    --ink-soft:#43524F;
+    --teal:#3D6B63;
+    --teal-deep:#2A4A44;
+    --rust:#B5651D;
+    --rust-soft:#D98A3D;
+    --sage:#8A9B96;
+    --line:#DAD6C8;
+    --card:#FCFCF9;
+    --good:#3D6B63;
+    --risk:#B5651D;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .serif{font-family:'Source Serif 4',serif;}
+
+  /* ---------- header ---------- */
+  header{
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+    position:sticky; top:0; z-index:10;
+  }
+  .header-inner{
+    max-width:1180px; margin:0 auto; padding:18px 28px;
+    display:flex; align-items:baseline; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand .mark{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
+    letter-spacing:0.08em; background:var(--teal); color:var(--paper);
+    padding:3px 7px; border-radius:3px;
+  }
+  .brand h1{font-family:'Source Serif 4',serif; font-size:19px; font-weight:600; margin:0;}
+  .brand .sub{color:var(--ink-soft); font-size:12.5px; font-family:'JetBrains Mono',monospace;}
+  .runinfo{font-size:11.5px; color:var(--sage); font-family:'JetBrains Mono',monospace; text-align:right;}
+
+  main{max-width:1180px; margin:0 auto; padding:0 28px 80px;}
+
+  /* ---------- kpi strip ---------- */
+  .kpi-strip{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); margin:28px 0 40px;
+  }
+  .kpi{background:var(--card); padding:18px 16px;}
+  .kpi .label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--sage); font-weight:600;}
+  .kpi .value{font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:700; color:var(--ink); margin-top:4px;}
+  .kpi .value small{font-size:13px; font-weight:500; color:var(--ink-soft);}
+  .kpi .note{font-size:11px; color:var(--ink-soft); margin-top:3px;}
+  .kpi.flag .value{color:var(--teal);}
+
+  /* ---------- section ---------- */
+  section{margin-bottom:52px;}
+  .section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:10px;}
+  .section-num{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--sage); font-weight:700;}
+  .section-head h2{font-family:'Source Serif 4',serif; font-size:20px; font-weight:600; margin:0;}
+  .section-desc{color:var(--ink-soft); font-size:13.5px; max-width:760px; margin:0 0 18px;}
+
+  .grid-2{display:grid; grid-template-columns:1.1fr 0.9fr; gap:24px;}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  @media(max-width:860px){ .grid-2{grid-template-columns:1fr;} .grid-3{grid-template-columns:1fr;} }
+
+  .card{background:var(--card); border:1px solid var(--line); padding:20px;}
+  .card h3{font-family:'Source Serif 4',serif; font-size:15px; margin:0 0 12px; font-weight:600;}
+
+  /* ---------- k-selection chart ---------- */
+  #kchart{width:100%; height:220px;}
+
+  /* ---------- cluster cards ---------- */
+  .cluster-cards{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:700px){.cluster-cards{grid-template-columns:1fr;}}
+  .cluster-card{border:1px solid var(--line); background:var(--card); padding:18px;}
+  .cluster-card .tag{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700;
+    padding:3px 8px; border-radius:3px; letter-spacing:0.04em; margin-bottom:8px;
+  }
+  .cluster-card.c0 .tag{background:#E4ECE9; color:var(--teal-deep);}
+  .cluster-card.c1 .tag{background:#F3E3D1; color:var(--rust);}
+  .cluster-card h4{font-family:'Source Serif 4',serif; font-size:16.5px; margin:2px 0 2px; font-weight:600;}
+  .cluster-card .n{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-soft); margin-bottom:14px;}
+  .bar-row{display:grid; grid-template-columns:120px 1fr 34px; align-items:center; gap:8px; margin-bottom:7px;}
+  .bar-row .lbl{font-size:11.5px; color:var(--ink-soft);}
+  .bar-track{background:var(--paper-alt); height:7px; border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:4px;}
+  .c0 .bar-fill{background:var(--teal);}
+  .c1 .bar-fill{background:var(--rust);}
+  .bar-row .val{font-family:'JetBrains Mono',monospace; font-size:11px; text-align:right; color:var(--ink);}
+  .sdoh-line{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+  .chip{font-size:10.5px; font-family:'JetBrains Mono',monospace; background:var(--paper-alt); padding:3px 7px; border-radius:3px; color:var(--ink-soft);}
+
+  /* ---------- feature importance ---------- */
+  .fi-row{display:grid; grid-template-columns:170px 1fr 46px; align-items:center; gap:10px; margin-bottom:9px;}
+  .fi-row .lbl{font-size:12px;}
+  .fi-track{background:var(--paper-alt); height:9px;}
+  .fi-fill{height:100%; background:linear-gradient(90deg,var(--teal),var(--teal-deep));}
+  .fi-row .val{font-family:'JetBrains Mono',monospace; font-size:11px; text-align:right;}
+
+  /* ---------- equity ---------- */
+  .equity-note{
+    background:#FBF2E6; border:1px solid #E9CFA6; padding:14px 16px; font-size:13px; color:var(--ink);
+    margin-bottom:18px; border-left:3px solid var(--rust);
+  }
+  .equity-note b{color:var(--rust);}
+  .eq-row{display:grid; grid-template-columns:150px 1fr 60px; align-items:center; gap:10px; margin-bottom:9px;}
+  .eq-row .lbl{font-size:12px;}
+  .eq-track{background:var(--paper-alt); height:9px;}
+  .eq-fill{height:100%; background:linear-gradient(90deg,var(--rust-soft),var(--rust));}
+  .eq-row .val{font-family:'JetBrains Mono',monospace; font-size:11px; text-align:right;}
+
+  /* ---------- scorer ---------- */
+  .scorer{background:var(--card); border:1px solid var(--line); padding:26px;}
+  .scorer-grid{display:grid; grid-template-columns:1fr 1fr; gap:32px;}
+  @media(max-width:860px){.scorer-grid{grid-template-columns:1fr;}}
+  .field{margin-bottom:16px;}
+  .field label{display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); margin-bottom:5px;}
+  .field label .fv{font-family:'JetBrains Mono',monospace; color:var(--ink); font-weight:600;}
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:5px; background:var(--paper-alt); border-radius:3px; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%; background:var(--teal); cursor:pointer;
+    border:2px solid var(--card); box-shadow:0 0 0 1px var(--teal);
+  }
+  select{
+    width:100%; padding:8px 10px; border:1px solid var(--line); background:var(--paper); font-family:'Inter',sans-serif;
+    font-size:13px; color:var(--ink); border-radius:3px;
+  }
+  .result-panel{
+    background:var(--paper-alt); border:1px solid var(--line); padding:20px; position:sticky; top:90px;
+  }
+  .needle-track{position:relative; height:14px; background:linear-gradient(90deg,var(--teal) 0%, var(--teal) 45%, var(--rust) 55%, var(--rust) 100%); border-radius:7px; margin:22px 0 10px;}
+  .needle{
+    position:absolute; top:-6px; width:4px; height:26px; background:var(--ink); border-radius:2px;
+    transform:translateX(-2px); transition:left 0.25s ease;
+  }
+  .needle-labels{display:flex; justify-content:space-between; font-size:10.5px; font-family:'JetBrains Mono',monospace; color:var(--ink-soft);}
+  .result-headline{font-family:'Source Serif 4',serif; font-size:19px; font-weight:600; margin:16px 0 4px;}
+  .result-sub{font-size:12.5px; color:var(--ink-soft); margin-bottom:14px;}
+  .conf-row{display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:12px; margin-top:10px;}
+  .flag-box{
+    margin-top:16px; padding:12px 14px; font-size:12.5px; border-radius:3px; border-left:3px solid;
+  }
+  .flag-box.ok{background:#E4ECE9; border-color:var(--teal); color:var(--teal-deep);}
+  .flag-box.boundary{background:#FBF2E6; border-color:var(--rust); color:#8A4A11;}
+
+  footer{
+    border-top:1px solid var(--line); padding:26px 28px; max-width:1180px; margin:0 auto;
+    font-size:11.5px; color:var(--sage); font-family:'JetBrains Mono',monospace;
+  }
+  footer a{color:var(--teal);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <span class="mark">VF-CLUSTER</span>
+      <div>
+        <h1>Valley Fever Patient Grouping</h1>
+        <div class="sub">clinical symptoms × social determinants of health</div>
+      </div>
+    </div>
+    <div class="runinfo">n = 300 synthetic patients · k selected by silhouette scan · seed = 42</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="kpi-strip">
+    <div class="kpi"><div class="label">Selected k</div><div class="value">2</div><div class="note">of k=2–8 scanned</div></div>
+    <div class="kpi"><div class="label">Silhouette</div><div class="value">0.359</div><div class="note">KMeans, k=2</div></div>
+    <div class="kpi flag"><div class="label">Bootstrap stability</div><div class="value">0.970</div><div class="note">mean ARI, 50 resamples</div></div>
+    <div class="kpi"><div class="label">RF recoverability</div><div class="value">98.0<small>%</small></div><div class="note">CV accuracy, cluster ← features</div></div>
+    <div class="kpi"><div class="label">Cross-algo ARI</div><div class="value">0.921</div><div class="note">KMeans vs. Agglom. / GMM</div></div>
+  </div>
+
+  <!-- 1. k selection -->
+  <section>
+    <div class="section-head"><span class="section-num">01</span><h2>Choosing k</h2></div>
+    <p class="section-desc">k is not assumed — it's selected by scanning k=2–8 and maximizing silhouette score. It peaked at k=2, not the k=3 the synthetic archetypes were built from: the algorithm merged "moderate" and "severe" into one broad elevated-risk group.</p>
+    <div class="card">
+      <canvas id="kchart"></canvas>
+    </div>
+  </section>
+
+  <!-- 2. cluster comparison -->
+  <section>
+    <div class="section-head"><span class="section-num">02</span><h2>The two groups</h2></div>
+    <p class="section-desc">Per-cluster means for the features that separate them most, plus the modal social-determinant profile for each group.</p>
+    <div class="cluster-cards" id="clusterCards"></div>
+  </section>
+
+  <!-- 3. feature importance -->
+  <section>
+    <div class="section-head"><span class="section-num">03</span><h2>What actually separates them</h2></div>
+    <p class="section-desc">A Random Forest trained to predict cluster label from the original features reaches 98.0% cross-validated accuracy — the split is a real, learnable pattern, driven by a mix of clinical severity <i>and</i> access-to-care, not one or the other.</p>
+    <div class="card" id="fiCard"></div>
+  </section>
+
+  <!-- 4. equity audit -->
+  <section>
+    <div class="section-head"><span class="section-num">04</span><h2>Equity audit</h2></div>
+    <p class="section-desc">How strongly does cluster membership associate with socioeconomic variables that weren't meant to be the whole story?</p>
+    <div class="equity-note">
+      <b>Finding:</b> cluster membership is strongly associated with income bracket, employment status, and insurance status (Cramér's V ≈ 0.5–0.6). This "elevated risk" group is arguably as much a <b>resource-access</b> group as a clinical-severity group — a real consideration for how any grouping like this should (and shouldn't) inform care decisions.
+    </div>
+    <div class="card" id="eqCard"></div>
+  </section>
+
+  <!-- 5. live scorer -->
+  <section>
+    <div class="section-head"><span class="section-num">05</span><h2>Score a new patient</h2></div>
+    <p class="section-desc">The real deployment use case: a case worker has one new patient, not a batch to re-cluster. This reproduces <code class="mono">assign_new_patient.py</code>'s nearest-centroid logic in-browser — distances are z-scored against the same population statistics as the Python pipeline, using the top features from the importance ranking above. Move the sliders.</p>
+    <div class="scorer">
+      <div class="scorer-grid">
+        <div>
+          <div class="field">
+            <label>Weight loss (%) <span class="fv" id="v_weight_loss_pct">4.0</span></label>
+            <input type="range" id="weight_loss_pct" min="0" max="15" step="0.5" value="4">
+          </div>
+          <div class="field">
+            <label>Night sweats severity (0–10) <span class="fv" id="v_night_sweats_severity">4.0</span></label>
+            <input type="range" id="night_sweats_severity" min="0" max="10" step="0.5" value="4">
+          </div>
+          <div class="field">
+            <label>Access to care (0–10, higher = better) <span class="fv" id="v_access_to_care_score">6.0</span></label>
+            <input type="range" id="access_to_care_score" min="0" max="10" step="0.5" value="6">
+          </div>
+          <div class="field">
+            <label>Housing stability (0–10) <span class="fv" id="v_housing_stability">6.0</span></label>
+            <input type="range" id="housing_stability" min="0" max="10" step="0.5" value="6">
+          </div>
+          <div class="field">
+            <label>Joint pain severity (0–10) <span class="fv" id="v_joint_pain_severity">4.0</span></label>
+            <input type="range" id="joint_pain_severity" min="0" max="10" step="0.5" value="4">
+          </div>
+        </div>
+        <div>
+          <div class="field">
+            <label>Symptom duration (weeks) <span class="fv" id="v_symptom_duration_weeks">6.0</span></label>
+            <input type="range" id="symptom_duration_weeks" min="0.5" max="25" step="0.5" value="6">
+          </div>
+          <div class="field">
+            <label>Distance to clinic (mi) <span class="fv" id="v_distance_to_clinic_mi">12.0</span></label>
+            <input type="range" id="distance_to_clinic_mi" min="0.5" max="40" step="0.5" value="12">
+          </div>
+          <div class="field">
+            <label>Employment status</label>
+            <select id="employment_status">
+              <option value="employed_ft">Employed, full-time</option>
+              <option value="employed_pt">Employed, part-time</option>
+              <option value="unemployed">Unemployed</option>
+              <option value="disabled">Unable to work / disabled</option>
+              <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Insurance status</label>
+            <select id="insurance_status">
+              <option value="private">Private</option>
+              <option value="medicaid">Medicaid</option>
+              <option value="medicare">Medicare</option>
+              <option value="uninsured">Uninsured</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Income bracket</label>
+            <select id="income_bracket">
+              <option value="<25k">&lt;$25k</option>
+              <option value="25-50k">$25–50k</option>
+              <option value="50-75k">$50–75k</option>
+              <option value="75k+">$75k+</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-panel">
+        <div class="label" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--sage);font-weight:600;">Nearest-centroid distance</div>
+        <div class="needle-track"><div class="needle" id="needle" style="left:50%;"></div></div>
+        <div class="needle-labels"><span>Cluster 0 — mild / well-resourced</span><span>Cluster 1 — elevated risk</span></div>
+
+        <div class="result-headline" id="resultHeadline">—</div>
+        <div class="result-sub" id="resultSub">Adjust the sliders to score a patient.</div>
+
+        <div class="conf-row"><span>match confidence</span><span id="confVal">—</span></div>
+        <div id="flagBox"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Static reproduction of results from the batch pipeline (<span class="mono">main.py</span>) and the new-patient scorer (<span class="mono">assign_new_patient.py</span>). All numbers on this page are from a single fixed-seed run (seed=42) on 300 synthetic patients — see the project README for the full methodology, the GMM calibration bug writeup, and the equity-audit discussion. Synthetic data only; no real patient information was used.
+</footer>
+
+<script>
+// ============================================================
+// REAL DATA from this project's fixed-seed run (outputs/*.csv)
+// ============================================================
+const K_SCORES = [
+  {k:2, silhouette:0.359}, {k:3, silhouette:0.307}, {k:4, silhouette:0.310},
+  {k:5, silhouette:0.284}, {k:6, silhouette:0.116}, {k:7, silhouette:0.177}, {k:8, silhouette:0.109}
+];
+
+const CLUSTERS = [
+  {
+    id:0, name:"Mild / well-resourced", n:162,
+    stats:[
+      {label:"Fever severity", value:2.98, max:10},
+      {label:"Fatigue severity", value:3.66, max:10},
+      {label:"Weight loss (%)", value:1.55, max:12.7},
+      {label:"Symptom duration (wks)", value:3.10, max:25.7},
+      {label:"Access to care", value:7.92, max:10},
+      {label:"Housing stability", value:8.06, max:10},
+    ],
+    sdoh:["employed_ft","bachelors_plus","private insurance","income $75k+"]
+  },
+  {
+    id:1, name:"Elevated risk", n:138,
+    stats:[
+      {label:"Fever severity", value:6.34, max:10},
+      {label:"Fatigue severity", value:6.98, max:10},
+      {label:"Weight loss (%)", value:5.84, max:12.7},
+      {label:"Symptom duration (wks)", value:9.11, max:25.7},
+      {label:"Access to care", value:3.98, max:10},
+      {label:"Housing stability", value:4.07, max:10},
+    ],
+    sdoh:["unemployed","high school","Medicaid","income <$25k"]
+  }
+];
+
+const FEATURE_IMPORTANCE = [
+  {feature:"weight_loss_pct", label:"Weight loss (%)", importance:0.141},
+  {feature:"night_sweats_severity", label:"Night sweats severity", importance:0.141},
+  {feature:"access_to_care_score", label:"Access to care", importance:0.134},
+  {feature:"housing_stability", label:"Housing stability", importance:0.102},
+  {feature:"joint_pain_severity", label:"Joint pain severity", importance:0.095},
+  {feature:"social_support_score", label:"Social support", importance:0.075},
+  {feature:"distance_to_clinic_mi", label:"Distance to clinic", importance:0.072},
+  {feature:"symptom_duration_weeks", label:"Symptom duration", importance:0.050},
+];
+
+const EQUITY = [
+  {label:"Income bracket", cramers_v:0.590},
+  {label:"Employment status", cramers_v:0.586},
+  {label:"Insurance status", cramers_v:0.519},
+  {label:"Education level", cramers_v:0.408},
+];
+
+// population stats (mean, std) from synthetic_patients.csv — used to z-score the scorer
+const POP = {
+  weight_loss_pct: {mean:3.525, std:2.865},
+  night_sweats_severity: {mean:3.974, std:2.391},
+  access_to_care_score: {mean:6.106, std:2.467},
+  housing_stability: {mean:6.221, std:2.541},
+  joint_pain_severity: {mean:3.681, std:2.344},
+  symptom_duration_weeks: {mean:5.863, std:4.410},
+  distance_to_clinic_mi: {mean:12.535, std:9.160},
+};
+
+// cluster centroids in the SAME raw units (from cluster_profiles.csv)
+const CENTROIDS = {
+  0: {weight_loss_pct:1.55, night_sweats_severity:2.23, access_to_care_score:7.92, housing_stability:8.06,
+      joint_pain_severity:2.00, symptom_duration_weeks:3.10, distance_to_clinic_mi:6.64},
+  1: {weight_loss_pct:5.84, night_sweats_severity:6.02, access_to_care_score:3.98, housing_stability:4.07,
+      joint_pain_severity:5.65, symptom_duration_weeks:9.11, distance_to_clinic_mi:19.46},
+};
+
+// feature importance weights used for the WEIGHTED nearest-centroid distance below
+// (only the numeric features scored in the UI; renormalized to sum to 1 over this subset)
+const WEIGHTS_RAW = {
+  weight_loss_pct:0.141, night_sweats_severity:0.141, access_to_care_score:0.134,
+  housing_stability:0.102, joint_pain_severity:0.095, distance_to_clinic_mi:0.072, symptom_duration_weeks:0.050,
+};
+const WEIGHT_SUM = Object.values(WEIGHTS_RAW).reduce((a,b)=>a+b,0);
+const WEIGHTS = Object.fromEntries(Object.entries(WEIGHTS_RAW).map(([k,v])=>[k, v/WEIGHT_SUM]));
+
+// categorical association strength (Cramer's V) used as a soft nudge, not a hard rule
+const CAT_RISK = {
+  employment_status: {employed_ft:0.0, employed_pt:0.25, unemployed:1.0, disabled:0.85, retired:0.35},
+  insurance_status: {private:0.0, medicare:0.35, medicaid:0.85, uninsured:1.0},
+  income_bracket: {"75k+":0.0, "50-75k":0.3, "25-50k":0.65, "<25k":1.0},
+};
+const CAT_WEIGHT = 0.30; // categorical nudge contributes 30% of final score, numeric weighted-distance contributes 70%
+
+// ---------------- k-selection chart (hand-drawn SVG-in-canvas, no chart lib needed) ----------------
+function drawKChart(){
+  const canvas = document.getElementById('kchart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = 220;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const padL=42, padR=18, padT=16, padB=30;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const maxS = 0.4, minS = 0.05;
+
+  // axes
+  ctx.strokeStyle = '#DAD6C8'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT); ctx.lineTo(padL, H-padB); ctx.lineTo(W-padR, H-padB);
+  ctx.stroke();
+
+  // gridlines + y labels
+  ctx.fillStyle = '#8A9B96'; ctx.font = '10.5px JetBrains Mono, monospace';
+  for(let s=0.1; s<=0.35; s+=0.1){
+    const y = padT + plotH*(1-(s-minS)/(maxS-minS));
+    ctx.strokeStyle = '#EFEEE7'; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillText(s.toFixed(2), 4, y+3);
+  }
+
+  const xStep = plotW/(K_SCORES.length-1);
+  // line
+  ctx.strokeStyle = '#3D6B63'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  K_SCORES.forEach((d,i)=>{
+    const x = padL + i*xStep;
+    const y = padT + plotH*(1-(d.silhouette-minS)/(maxS-minS));
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // points + x labels
+  K_SCORES.forEach((d,i)=>{
+    const x = padL + i*xStep;
+    const y = padT + plotH*(1-(d.silhouette-minS)/(maxS-minS));
+    ctx.fillStyle = d.k===2 ? '#B5651D' : '#3D6B63';
+    ctx.beginPath(); ctx.arc(x,y, d.k===2?5:3.5, 0, 2*Math.PI); ctx.fill();
+    ctx.fillStyle = '#43524F'; ctx.font='11px JetBrains Mono, monospace'; ctx.textAlign='center';
+    ctx.fillText('k='+d.k, x, H-padB+16);
+  });
+  ctx.textAlign='left';
+
+  // chosen-k marker line
+  const chosenIdx = K_SCORES.findIndex(d=>d.k===2);
+  const cx = padL + chosenIdx*xStep;
+  ctx.strokeStyle = '#B5651D'; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,padT); ctx.lineTo(cx,H-padB); ctx.stroke();
+  ctx.setLineDash([]);
+}
+window.addEventListener('resize', drawKChart);
+
+// ---------------- cluster cards ----------------
+function renderClusterCards(){
+  const container = document.getElementById('clusterCards');
+  container.innerHTML = CLUSTERS.map(c => `
+    <div class="cluster-card c${c.id}">
+      <span class="tag">CLUSTER ${c.id}</span>
+      <h4>${c.name}</h4>
+      <div class="n">n = ${c.n} patients (${Math.round(c.n/300*100)}%)</div>
+      ${c.stats.map(s => `
+        <div class="bar-row">
+          <div class="lbl">${s.label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(s.value/s.max*100).toFixed(0)}%"></div></div>
+          <div class="val">${s.value.toFixed(1)}</div>
+        </div>
+      `).join('')}
+      <div class="sdoh-line">${c.sdoh.map(t=>`<span class="chip">${t}</span>`).join('')}</div>
+    </div>
+  `).join('');
+}
+
+// ---------------- feature importance ----------------
+function renderFI(){
+  const maxImp = Math.max(...FEATURE_IMPORTANCE.map(f=>f.importance));
+  document.getElementById('fiCard').innerHTML = FEATURE_IMPORTANCE.map(f => `
+    <div class="fi-row">
+      <div class="lbl">${f.label}</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${(f.importance/maxImp*100).toFixed(0)}%"></div></div>
+      <div class="val">${f.importance.toFixed(3)}</div>
+    </div>
+  `).join('');
+}
+
+// ---------------- equity ----------------
+function renderEquity(){
+  document.getElementById('eqCard').innerHTML = EQUITY.map(e => `
+    <div class="eq-row">
+      <div class="lbl">${e.label}</div>
+      <div class="eq-track"><div class="eq-fill" style="width:${(e.cramers_v/0.7*100).toFixed(0)}%"></div></div>
+      <div class="val">V=${e.cramers_v.toFixed(3)}</div>
+    </div>
+  `).join('');
+}
+
+// ---------------- live scorer ----------------
+const NUMERIC_IDS = ['weight_loss_pct','night_sweats_severity','access_to_care_score','housing_stability','joint_pain_severity','symptom_duration_weeks','distance_to_clinic_mi'];
+
+function zscore(val, feat){
+  const p = POP[feat];
+  return (val - p.mean) / p.std;
+}
+
+function computeScore(){
+  const raw = {};
+  NUMERIC_IDS.forEach(id => { raw[id] = parseFloat(document.getElementById(id).value); });
+
+  // weighted squared z-distance to each centroid, using feature-importance weights
+  let d0 = 0, d1 = 0;
+  NUMERIC_IDS.forEach(feat => {
+    const z = zscore(raw[feat], feat);
+    const z0 = zscore(CENTROIDS[0][feat], feat);
+    const z1 = zscore(CENTROIDS[1][feat], feat);
+    d0 += WEIGHTS[feat] * Math.pow(z - z0, 2);
+    d1 += WEIGHTS[feat] * Math.pow(z - z1, 2);
+  });
+  const numericScore1 = d0 / (d0 + d1 + 1e-9); // 0 = fully cluster0-like, 1 = fully cluster1-like (by distance ratio)
+
+  // categorical nudge
+  const emp = document.getElementById('employment_status').value;
+  const ins = document.getElementById('insurance_status').value;
+  const inc = document.getElementById('income_bracket').value;
+  const catScore1 = (CAT_RISK.employment_status[emp] + CAT_RISK.insurance_status[ins] + CAT_RISK.income_bracket[inc]) / 3;
+
+  const finalScore1 = (1-CAT_WEIGHT)*numericScore1 + CAT_WEIGHT*catScore1; // 0..1, position toward cluster 1
+  return Math.max(0, Math.min(1, finalScore1));
+}
+
+function updateScorer(){
+  NUMERIC_IDS.forEach(id => {
+    document.getElementById('v_'+id).textContent = parseFloat(document.getElementById(id).value).toFixed(1);
+  });
+
+  const score1 = computeScore(); // 0..1 toward cluster 1
+  const pct = (score1*100).toFixed(0);
+  document.getElementById('needle').style.left = pct+'%';
+
+  const cluster = score1 >= 0.5 ? 1 : 0;
+  const confidence = cluster===1 ? score1 : (1-score1); // how far toward the assigned side, 0.5..1.0
+  const confPct = (confidence*100).toFixed(0);
+
+  const name = cluster===1 ? "Cluster 1 — Elevated risk" : "Cluster 0 — Mild / well-resourced";
+  document.getElementById('resultHeadline').textContent = name;
+  document.getElementById('resultSub').textContent = cluster===1
+    ? "Symptom burden and/or resource-access profile resembles the elevated-risk group."
+    : "Symptom burden and resource-access profile resemble the mild, well-resourced group.";
+  document.getElementById('confVal').textContent = confPct + '%';
+
+  const boundary = confidence < 0.65; // same 0.65 threshold used in assign_new_patient.py
+  const flagBox = document.getElementById('flagBox');
+  if(boundary){
+    flagBox.className = 'flag-box boundary';
+    flagBox.innerHTML = '<b>Boundary case flag —</b> confidence below 65%. In the Python pipeline this routes to a case manager for manual review rather than auto-applying a group care pathway.';
+  } else {
+    flagBox.className = 'flag-box ok';
+    flagBox.innerHTML = '<b>Confident match —</b> above the 65% threshold used to auto-apply a group care pathway.';
+  }
+}
+
+document.querySelectorAll('input[type=range], select').forEach(el => {
+  el.addEventListener('input', updateScorer);
+});
+
+drawKChart();
+renderClusterCards();
+renderFI();
+renderEquity();
+updateScorer();
+</script>
+
+</body>
+</html>
